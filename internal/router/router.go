@@ -21,5 +21,19 @@ func SetupRoutes(r *gin.Engine, container *app.Container) {
 				userProtected.GET("/:user_id", container.UserHandler.GetUser)
 			}
 		}
+
+		products := v1.Group("/products")
+		{
+			products.GET("", container.ProductHandler.ListProducts)
+			products.GET("/:product_id", container.ProductHandler.GetProduct)
+
+			productProtected := products.Group("")
+			productProtected.Use(middleware.AuthMiddleware())
+			{
+				productProtected.POST("", container.ProductHandler.CreateProduct)
+				productProtected.PUT("/:product_id", container.ProductHandler.UpdateProduct)
+				productProtected.DELETE("/:product_id", container.ProductHandler.DeleteProduct)
+			}
+		}
 	}
 }
