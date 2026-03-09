@@ -2,6 +2,8 @@ package order
 
 import (
 	"time"
+
+	"github.com/LalitaAng/ecommerce-microservices-grpc/internal/payment"
 )
 
 const (
@@ -17,15 +19,14 @@ const (
 )
 
 type Order struct {
-	ID            string         `json:"id"`
-	UserID        string         `json:"user_id"`
-	OrderStatus   string         `json:"order_status"`
-	Products      []OrderProduct `json:"products"`
-	TotalAmount   float64        `json:"total_amount"`
-	PaymentMethod string         `json:"payment_method"`
-	PaymentStatus string         `json:"payment_status"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	ID            string         	`json:"id"`
+	UserID        string         	`json:"user_id"`
+	OrderStatus   string         	`json:"order_status"`
+	Products      []OrderProduct 	`json:"products"`
+	TotalAmount   float64        	`json:"total_amount"`
+	CreatedAt     time.Time      	`json:"created_at"`
+	UpdatedAt     time.Time      	`json:"updated_at"`
+	Payment 	  *payment.Payment  `json:"payment,omitempty"`
 }
 
 type OrderProduct struct {

@@ -21,8 +21,8 @@ func NewOrderRepository(db *pgxpool.Pool) *OrderRepository {
 
 func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order *Order) error {
 	query := `
-		INSERT INTO orders (id, user_id, order_status, total_amount, payment_method, payment_status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO orders (id, user_id, order_status, total_amount, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
 	_, err := tx.Exec(ctx, query,
@@ -30,8 +30,6 @@ func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order *Order) e
 		order.UserID,
 		order.OrderStatus,
 		order.TotalAmount,
-		order.PaymentMethod,
-		order.PaymentStatus,
 		order.CreatedAt,
 		order.UpdatedAt,
 	)
@@ -99,7 +97,7 @@ func (r *OrderRepository) List(ctx context.Context, status string, limit, offset
 
 	if status != "" {
 		query = `
-			SELECT id, user_id, order_status, total_amount, payment_method, payment_status, created_at, updated_at
+			SELECT id, user_id, order_status, total_amount, created_at, updated_at
 			FROM orders
 			WHERE order_status = $1
 			ORDER BY created_at DESC
@@ -110,7 +108,7 @@ func (r *OrderRepository) List(ctx context.Context, status string, limit, offset
 		args = []interface{}{status, limit, offset}
 	} else {
 		query = `
-			SELECT id, user_id, order_status, total_amount, payment_method, payment_status, created_at, updated_at
+			SELECT id, user_id, order_status, total_amount, created_at, updated_at
 			FROM orders
 			ORDER BY created_at DESC
 			LIMIT $1 OFFSET $2
@@ -143,8 +141,6 @@ func (r *OrderRepository) List(ctx context.Context, status string, limit, offset
 			&order.UserID,
 			&order.OrderStatus,
 			&order.TotalAmount,
-			&order.PaymentMethod,
-			&order.PaymentStatus,
 			&order.CreatedAt,
 			&order.UpdatedAt,
 		); err != nil {
@@ -212,7 +208,7 @@ func (r *OrderRepository) getOrderProductsBatch(ctx context.Context, orderIDs []
 func (r *OrderRepository) GetByID(ctx context.Context, id string) (*Order, error) {
 	var order Order
 	query := `	
-		SELECT id, user_id, order_status, total_amount, payment_method, payment_status, created_at, updated_at
+		SELECT id, user_id, order_status, total_amount, created_at, updated_at
 		FROM orders
 		WHERE id = $1
 	`
@@ -222,8 +218,6 @@ func (r *OrderRepository) GetByID(ctx context.Context, id string) (*Order, error
 		&order.UserID,
 		&order.OrderStatus,
 		&order.TotalAmount,
-		&order.PaymentMethod,
-		&order.PaymentStatus,
 		&order.CreatedAt,
 		&order.UpdatedAt,
 	); err != nil {
@@ -238,7 +232,7 @@ func (r *OrderRepository) Cancel(ctx context.Context, order *Order) (*Order, err
 		UPDATE orders
 		SET order_status = $1, updated_at = $2
 		WHERE id = $3
-		RETURNING id, user_id, order_status, total_amount, payment_method, payment_status, created_at, updated_at
+		RETURNING id, user_id, order_status, total_amount, created_at, updated_at
 	`
 
 	updated := &Order{}
@@ -247,8 +241,6 @@ func (r *OrderRepository) Cancel(ctx context.Context, order *Order) (*Order, err
         &updated.UserID,
         &updated.OrderStatus,
         &updated.TotalAmount,
-        &updated.PaymentMethod,
-        &updated.PaymentStatus,
         &updated.CreatedAt,
         &updated.UpdatedAt,
     )

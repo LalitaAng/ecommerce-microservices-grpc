@@ -48,8 +48,6 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID string, orderRequ
 		OrderStatus:   OrderStatusPending,
 		Products:      orderProducts,
 		TotalAmount:   totalAmount,
-		PaymentMethod: orderRequest.PaymentMethod,
-		PaymentStatus: payment.PaymentStatusPending,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
@@ -65,7 +63,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID string, orderRequ
 	return order, nil
 }
 
-func (s *OrderService) PayOrder(ctx context.Context, orderID string, userID string) (*Order, error) {
+func (s *OrderService) PayOrder(ctx context.Context, orderID string, userID string, paymentMethod string) (*Order, error) {
     order, err := s.orderRepo.GetByID(ctx, orderID)
     if err != nil {
         return nil, fmt.Errorf("order not found: %w", err)
@@ -75,9 +73,6 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID string, userID stri
         return nil, errors.New("order does not belong to user")
     }
 
-    if order.PaymentStatus == payment.PaymentStatusCompleted {
-        return nil, errors.New("order is already paid")
-    }
     if order.OrderStatus == OrderStatusCancelled {
         return nil, errors.New("cannot pay for a cancelled order")
     }
@@ -85,22 +80,17 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID string, userID stri
     _, err = s.paymentService.CreatePayment(ctx, payment.CreatePaymentRequest{
         OrderID:       order.ID,
         Amount:        order.TotalAmount,
-        PaymentMethod: order.PaymentMethod,
+        PaymentMethod: paymentMethod,
         TransactionID: "txn_" + uuid.New().String(),
     })
     if err != nil {
         return nil, fmt.Errorf("payment failed: %w", err)
     }
 
-    if err := s.orderRepo.UpdatePaymentStatus(ctx, order.ID, payment.PaymentStatusCompleted); err != nil {
-        return nil, fmt.Errorf("failed to update payment status: %w", err)
-    }
-
     if err := s.orderRepo.UpdateOrderStatus(ctx, order.ID, OrderStatusCompleted); err != nil {
         return nil, fmt.Errorf("failed to update order status: %w", err)
     }
 
-    order.PaymentStatus = payment.PaymentStatusCompleted
     order.OrderStatus = OrderStatusCompleted
     return order, nil
 }
@@ -152,7 +142,17 @@ func (s *OrderService) ListOrders(ctx context.Context, status string, page, page
 }
 
 func (s *OrderService) GetOrderDetails(ctx context.Context, orderID string) (*Order, error) {
-	return s.orderRepo.GetByID(ctx, orderID)
+	    order, err := s.orderRepo.GetByID(ctx, orderID)
+    if err != nil {
+        return nil, err
+    }
+
+    p, err := s.paymentService.GetPaymentByOrderID(ctx, orderID)
+    if err == nil {
+        order.Payment = p
+    }
+
+    return order, nil
 }
 
 func (s *OrderService) CancelOrder(ctx context.Context, orderID string) (*Order, error) {
@@ -178,10 +178,6 @@ func (s *OrderService) RefundOrder(ctx context.Context, orderID string, userID s
         return nil, errors.New("order does not belong to user")
     }
 
-    if order.PaymentStatus != payment.PaymentStatusCompleted {
-        return nil, errors.New("only completed payments can be refunded")
-    }
-
     p, err := s.paymentService.GetPaymentByOrderID(ctx, orderID)
     if err != nil {
         return nil, fmt.Errorf("payment not found: %w", err)
@@ -192,15 +188,10 @@ func (s *OrderService) RefundOrder(ctx context.Context, orderID string, userID s
         return nil, fmt.Errorf("refund failed: %w", err)
     }
 
-    if err := s.orderRepo.UpdatePaymentStatus(ctx, orderID, payment.PaymentStatusRefunded); err != nil {
-        return nil, fmt.Errorf("failed to update payment status: %w", err)
-    }
-
     if err := s.orderRepo.UpdateOrderStatus(ctx, orderID, OrderStatusCancelled); err != nil {
         return nil, fmt.Errorf("failed to update order status: %w", err)
     }
 
-    order.PaymentStatus = payment.PaymentStatusRefunded
     order.OrderStatus = OrderStatusCancelled
     return order, nil
 }

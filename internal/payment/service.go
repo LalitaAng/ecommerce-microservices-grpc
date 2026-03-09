@@ -26,6 +26,11 @@ func (s *PaymentService) CreatePayment(ctx context.Context, paymentRequest Creat
 		return nil, errors.New("payment method must be provided")
 	}
 
+	existing, err := s.repo.GetByOrderID(ctx, paymentRequest.OrderID)
+	if err == nil && existing.Status == PaymentStatusCompleted {
+    	return nil, errors.New("order is already paid")
+	}
+
 	payment := &Payment{
 		ID:            uuid.New().String(),
 		OrderID:       paymentRequest.OrderID,

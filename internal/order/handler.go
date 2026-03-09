@@ -69,7 +69,15 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
         return
     }
 
-    order, err := h.service.PayOrder(c.Request.Context(), orderID, userID.(string))
+	var req struct {
+        PaymentMethod string `json:"payment_method" binding:"required"`
+    }
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    order, err := h.service.PayOrder(c.Request.Context(), orderID, userID.(string), req.PaymentMethod)
     if err != nil {
         switch err.Error() {
         case "order is already paid":
